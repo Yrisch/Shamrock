@@ -29,12 +29,14 @@ namespace shammodels {
      * strategies can be added without breaking the config API again.
      */
     enum NeighCacheStrategy {
-        SingleStage              = 0, ///< Single tree traversal per particle
-        TwoStage                 = 1, ///< Two stage neighbours search (see shamrock paper)
-        SingleStageSharedOffload = 2, ///< Single tree traversal per particle, shared memory
-                                      ///< offload variant
-        TwoStageSharedOffload    = 3  ///< Two stage neighbours search, shared memory offload
-                                      ///< variant
+        SingleStage                 = 0, ///< Single tree traversal per particle
+        TwoStage                    = 1, ///< Two stage neighbours search (see shamrock paper)
+        SingleStageSharedOffload    = 2, ///< Single tree traversal per particle, shared memory
+                                         ///< offload variant
+        TwoStageSharedOffload       = 3, ///< Two stage neighbours search, shared memory offload
+                                         ///< variant
+        SingleStageSharedOffloadOpt = 4  ///< Optimised variant of SingleStageSharedOffload
+                                         ///< (same neighbour lists)
     };
 
     SHAMROCK_JSON_SERIALIZE_ENUM(
@@ -42,7 +44,8 @@ namespace shammodels {
         {{NeighCacheStrategy::SingleStage, "single_stage"},
          {NeighCacheStrategy::TwoStage, "two_stage"},
          {NeighCacheStrategy::SingleStageSharedOffload, "single_stage_shared_offload"},
-         {NeighCacheStrategy::TwoStageSharedOffload, "two_stage_shared_offload"}});
+         {NeighCacheStrategy::TwoStageSharedOffload, "two_stage_shared_offload"},
+         {NeighCacheStrategy::SingleStageSharedOffloadOpt, "single_stage_shared_offload_opt"}});
 
     /// Json key holding the neighbour cache strategy
     inline constexpr const char *neigh_cache_strategy_json_key = "neigh_cache_strategy";

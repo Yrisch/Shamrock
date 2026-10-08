@@ -121,6 +121,15 @@ ON_PYTHON_INIT {
     Same algorithm as TwoStage, but every tree traversal stack (leaf to leaf search
     and particle parent-leaf search) is placed in work-group local memory instead of a
     per-work-item std::array.
+)==")
+        .value(
+            "SingleStageSharedOffloadOpt",
+            shammodels::NeighCacheStrategy::SingleStageSharedOffloadOpt,
+            R"==(
+    Optimised variant of SingleStageSharedOffload.
+
+    Builds exactly the same neighbour lists (same neighbours, same order) as
+    SingleStageSharedOffload.
 )==");
 
     m.def(

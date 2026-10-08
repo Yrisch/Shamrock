@@ -238,6 +238,16 @@ namespace shammodels::basegodunov {
                     self.amr_interp_mode = SECOND_ORDER;
                 })
             .def(
+                "set_neigh_graph_strategy_standard",
+                [](TConfig &self) {
+                    self.neigh_graph_strategy = NeighGraphStrategy::NeighGraphStandard;
+                })
+            .def(
+                "set_neigh_graph_strategy_opt",
+                [](TConfig &self) {
+                    self.neigh_graph_strategy = NeighGraphStrategy::NeighGraphOpt;
+                })
+            .def(
                 "set_gravity_mode_no_gravity",
                 [](TConfig &self) {
                     self.gravity_config.gravity_mode = NoGravity;

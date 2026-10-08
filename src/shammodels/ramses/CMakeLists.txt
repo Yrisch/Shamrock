@@ -28,7 +28,9 @@ set(Sources
     src/modules/ComputeCellAABB.cpp
     src/modules/NodeBuildTrees.cpp
     src/modules/FindBlockNeigh.cpp
+    src/modules/FindBlockNeighOpt.cpp
     src/modules/BlockNeighToCellNeigh.cpp
+    src/modules/BlockNeighToCellNeighOpt.cpp
     src/modules/SlopeLimitedGradient.cpp
     src/modules/ComputeMass.cpp
     src/modules/ComputeSumOverV.cpp

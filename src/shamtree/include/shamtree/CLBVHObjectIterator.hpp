@@ -137,6 +137,44 @@ struct shamtree::CLBVHTraverserAccessed {
             [&](u32) {});
     }
 
+    /// Variant of rtree_for with warp coherent leaf processing (same visiting order)
+    /// (see KarrasTreeTraverserAccessed::stack_based_traversal_leaf_coherent)
+    template<class Functor1, class Functor2>
+    inline void rtree_for_leaf_coherent(
+        Functor1 &&traverse_condition_with_aabb, Functor2 &&on_found_leaf) const {
+
+        tree_traverser.template stack_based_traversal_leaf_coherent<tree_depth_max>(
+            [&](u32 node_id) { // interaction crit
+                return traverse_condition_with_aabb(
+                    node_id, shammath::AABB<Tvec>{aabb_min[node_id], aabb_max[node_id]});
+            },
+            [&](u32 node_id) { // on leaf found
+                on_found_leaf(node_id);
+            },
+            [&](u32) {});
+    }
+
+    /// Persistent variant of rtree_for (for persistent kernels), `next_work` `() -> bool` is
+    /// called before each traversal to update the internal state and returns whether to start
+    /// a new traversal (see KarrasTreeTraverserAccessed::persistent_stack_based_traversal)
+    template<class FunctorNext, class Functor1, class Functor2>
+    inline void rtree_for_persistent(
+        FunctorNext &&next_work,
+        Functor1 &&traverse_condition_with_aabb,
+        Functor2 &&on_found_leaf) const {
+
+        tree_traverser.template persistent_stack_based_traversal<tree_depth_max>(
+            std::forward<FunctorNext>(next_work),
+            [&](u32 node_id) { // interaction crit
+                return traverse_condition_with_aabb(
+                    node_id, shammath::AABB<Tvec>{aabb_min[node_id], aabb_max[node_id]});
+            },
+            [&](u32 node_id) { // on leaf found
+                on_found_leaf(node_id);
+            },
+            [&](u32) {});
+    }
+
     /// version using a stack supplied by the caller instead of an internal std::array
     /// (e.g. a slice of a local_accessor for shared memory offload).
     /// `stack` is a functor `(u32 id) -> u32 &` giving access to the entry `id` of the stack and
@@ -149,6 +187,27 @@ struct shamtree::CLBVHTraverserAccessed {
         Functor2 &&on_found_leaf) const {
 
         tree_traverser.stack_based_traversal(
+            std::forward<StackAccessor>(stack),
+            stack_size,
+            [&](u32 node_id) { // interaction crit
+                return traverse_condition_with_aabb(
+                    node_id, shammath::AABB<Tvec>{aabb_min[node_id], aabb_max[node_id]});
+            },
+            [&](u32 node_id) { // on leaf found
+                on_found_leaf(node_id);
+            },
+            [&](u32) {});
+    }
+    /// Variant of rtree_for with warp coherent leaf processing (same visiting order) using a
+    /// stack supplied by the caller (see the stack accessor version of rtree_for)
+    template<class StackAccessor, class Functor1, class Functor2>
+    inline void rtree_for_leaf_coherent(
+        StackAccessor &&stack,
+        u32 stack_size,
+        Functor1 &&traverse_condition_with_aabb,
+        Functor2 &&on_found_leaf) const {
+
+        tree_traverser.stack_based_traversal_leaf_coherent(
             std::forward<StackAccessor>(stack),
             stack_size,
             [&](u32 node_id) { // interaction crit
@@ -192,6 +251,45 @@ struct shamtree::CLBVHObjectIteratorAccessed {
             });
     }
 
+    /// Variant of rtree_for with warp coherent leaf processing (same visiting order)
+    template<class Functor1, class Functor2>
+    inline void rtree_for_leaf_coherent(
+        Functor1 &&traverse_condition_with_aabb, Functor2 &&on_found_object) const {
+
+        tree_traverser.rtree_for_leaf_coherent(
+            std::forward<Functor1>(traverse_condition_with_aabb),
+            [&](u32 node_id) { // on leaf found
+                u32 leaf_id = node_id - tree_traverser.tree_traverser.offset_leaf;
+                cell_iterator.for_each_in_leaf_cell(leaf_id, on_found_object);
+            });
+    }
+
+    /**
+     * @brief Persistent variant of rtree_for (for persistent kernels)
+     *
+     * @param[in] next_work A `() -> bool` function called before each traversal, updating the
+     * internal state (e.g. store the previous result and fetch the next ray) and returning
+     * whether a new traversal should start.
+     * @param[in] traverse_condition_with_aabb A function taking a node_id and its AABB,
+     * and returning a boolean indicating whether to traverse the node further.
+     * @param[in] on_found_object A function to be called for each object found in a leaf
+     * node that meets the traversal condition.
+     */
+    template<class FunctorNext, class Functor1, class Functor2>
+    inline void rtree_for_persistent(
+        FunctorNext &&next_work,
+        Functor1 &&traverse_condition_with_aabb,
+        Functor2 &&on_found_object) const {
+
+        tree_traverser.rtree_for_persistent(
+            std::forward<FunctorNext>(next_work),
+            std::forward<Functor1>(traverse_condition_with_aabb),
+            [&](u32 node_id) { // on leaf found
+                u32 leaf_id = node_id - tree_traverser.tree_traverser.offset_leaf;
+                cell_iterator.for_each_in_leaf_cell(leaf_id, on_found_object);
+            });
+    }
+
     /// version using a stack supplied by the caller instead of an internal std::array
     /// (e.g. a slice of a local_accessor for shared memory offload).
     /// `stack` is a functor `(u32 id) -> u32 &` giving access to the entry `id` of the stack and
@@ -204,6 +302,24 @@ struct shamtree::CLBVHObjectIteratorAccessed {
         Functor2 &&on_found_object) const {
 
         tree_traverser.rtree_for(
+            std::forward<StackAccessor>(stack),
+            stack_size,
+            std::forward<Functor1>(traverse_condition_with_aabb),
+            [&](u32 node_id) { // on leaf found
+                u32 leaf_id = node_id - tree_traverser.tree_traverser.offset_leaf;
+                cell_iterator.for_each_in_leaf_cell(leaf_id, on_found_object);
+            });
+    }
+    /// Variant of rtree_for with warp coherent leaf processing (same visiting order) using a
+    /// stack supplied by the caller (see the stack accessor version of rtree_for)
+    template<class StackAccessor, class Functor1, class Functor2>
+    inline void rtree_for_leaf_coherent(
+        StackAccessor &&stack,
+        u32 stack_size,
+        Functor1 &&traverse_condition_with_aabb,
+        Functor2 &&on_found_object) const {
+
+        tree_traverser.rtree_for_leaf_coherent(
             std::forward<StackAccessor>(stack),
             stack_size,
             std::forward<Functor1>(traverse_condition_with_aabb),

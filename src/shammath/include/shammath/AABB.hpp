@@ -45,6 +45,9 @@ namespace shammath {
         T inv_direction;
         Tscal t_min; ///< Lower bound of the ray parameter (along the normalized direction)
 
+        /// Default constructor, members are left uninitialized (e.g. for a ray set later)
+        Ray() = default;
+
         /**
          * @brief Construct a normalized ray from origin and direction
          *

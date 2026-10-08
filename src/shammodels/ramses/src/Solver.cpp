@@ -25,6 +25,7 @@
 #include "shammodels/ramses/SolverConfig.hpp"
 #include "shammodels/ramses/modules/AMRGridRefinementHandler.hpp"
 #include "shammodels/ramses/modules/BlockNeighToCellNeigh.hpp"
+#include "shammodels/ramses/modules/BlockNeighToCellNeighOpt.hpp"
 #include "shammodels/ramses/modules/ComputeAMRLevel.hpp"
 #include "shammodels/ramses/modules/ComputeCFL.hpp"
 #include "shammodels/ramses/modules/ComputeCellAABB.hpp"
@@ -39,6 +40,7 @@
 #include "shammodels/ramses/modules/EulerTimeDerivativeGas.hpp"
 #include "shammodels/ramses/modules/ExtractGhostLayer.hpp"
 #include "shammodels/ramses/modules/FindBlockNeigh.hpp"
+#include "shammodels/ramses/modules/FindBlockNeighOpt.hpp"
 #include "shammodels/ramses/modules/FindGhostLayerIndices.hpp"
 #include "shammodels/ramses/modules/FuseGhostLayer.hpp"
 #include "shammodels/ramses/modules/InterpolateToFace.hpp"
@@ -942,28 +944,38 @@ void shammodels::basegodunov::Solver<Tvec, TgridVec>::init_solver_graph() {
     { // build neigh tables
         std::vector<std::shared_ptr<shamrock::solvergraph::INode>> neigh_table_sequence;
 
-        modules::FindBlockNeigh<Tvec, TgridVec, u_morton> node1;
-        node1.set_edges(
-            storage.block_counts_with_ghost,
-            storage.refs_block_min,
-            storage.refs_block_max,
-            storage.trees,
-            storage.block_graph_edge);
-        node1.evaluate();
+        auto add_neigh_table_nodes = [&](auto node1, auto node2) {
+            node1.set_edges(
+                storage.block_counts_with_ghost,
+                storage.refs_block_min,
+                storage.refs_block_max,
+                storage.trees,
+                storage.block_graph_edge);
+            node1.evaluate();
 
-        modules::BlockNeighToCellNeigh<Tvec, TgridVec, u_morton> node2(Config::NsideBlockPow);
-        node2.set_edges(
-            storage.block_counts_with_ghost,
-            storage.refs_block_min,
-            storage.refs_block_max,
-            storage.block_graph_edge,
-            storage.cell_graph_edge);
-        node2.evaluate();
+            node2.set_edges(
+                storage.block_counts_with_ghost,
+                storage.refs_block_min,
+                storage.refs_block_max,
+                storage.block_graph_edge,
+                storage.cell_graph_edge);
+            node2.evaluate();
 
-        neigh_table_sequence.push_back(std::make_shared<decltype(node1)>(std::move(node1)));
-        get_optional_free_mem(storage.trees, neigh_table_sequence);
-        neigh_table_sequence.push_back(std::make_shared<decltype(node2)>(std::move(node2)));
-        get_optional_free_mem(storage.block_graph_edge, neigh_table_sequence);
+            neigh_table_sequence.push_back(std::make_shared<decltype(node1)>(std::move(node1)));
+            get_optional_free_mem(storage.trees, neigh_table_sequence);
+            neigh_table_sequence.push_back(std::make_shared<decltype(node2)>(std::move(node2)));
+            get_optional_free_mem(storage.block_graph_edge, neigh_table_sequence);
+        };
+
+        if (solver_config.neigh_graph_strategy == NeighGraphStrategy::NeighGraphOpt) {
+            add_neigh_table_nodes(
+                modules::FindBlockNeighOpt<Tvec, TgridVec, u_morton>{},
+                modules::BlockNeighToCellNeighOpt<Tvec, TgridVec, u_morton>(Config::NsideBlockPow));
+        } else {
+            add_neigh_table_nodes(
+                modules::FindBlockNeigh<Tvec, TgridVec, u_morton>{},
+                modules::BlockNeighToCellNeigh<Tvec, TgridVec, u_morton>(Config::NsideBlockPow));
+        }
 
         shamrock::solvergraph::OperationSequence seq(
             "Compute neigh table", std::move(neigh_table_sequence));

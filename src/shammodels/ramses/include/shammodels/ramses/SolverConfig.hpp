@@ -30,6 +30,7 @@
 #include "shammodels/ramses/config/enum_DragSolverMode.hpp"
 #include "shammodels/ramses/config/enum_DustRiemannSolverMode.hpp"
 #include "shammodels/ramses/config/enum_GravityMode.hpp"
+#include "shammodels/ramses/config/enum_NeighGraphStrategy.hpp"
 #include "shammodels/ramses/config/enum_RiemannSolverMode.hpp"
 #include "shammodels/ramses/config/enum_SlopeMode.hpp"
 #include "shamrock/experimental_features.hpp"
@@ -177,6 +178,9 @@ struct shammodels::basegodunov::SolverConfig {
     bool face_half_time_interpolation = true;
 
     AMRInterpMode amr_interp_mode = FIRST_ORDER;
+
+    /// Strategy used to build the block & cell neighbour graphs
+    NeighGraphStrategy neigh_graph_strategy = NeighGraphStrategy::NeighGraphStandard;
 
     inline bool should_compute_rho_mean() { return is_gravity_on() && is_boundary_periodic(); }
 

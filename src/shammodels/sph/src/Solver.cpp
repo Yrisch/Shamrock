@@ -1906,6 +1906,9 @@ void shammodels::sph::Solver<Tvec, Kern>::start_neighbors_cache() {
     case NeighCacheStrategy::TwoStageSharedOffload:
         neigh_cache_builder.start_neighbors_cache_2stages_shared_offload();
         break;
+    case NeighCacheStrategy::SingleStageSharedOffloadOpt:
+        neigh_cache_builder.start_neighbors_cache_shared_offload_opt();
+        break;
     default: shambase::throw_unimplemented("unknown neighbours cache strategy");
     }
 
