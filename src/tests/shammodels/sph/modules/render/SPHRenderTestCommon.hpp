@@ -98,6 +98,20 @@ namespace sph_render_test {
         return rays;
     }
 
+    /// Half-line rays starting in the middle of the particle box (z = 0) toward +z
+    inline std::vector<shammath::Ray<Tvec>> make_half_column_rays() {
+        std::vector<shammath::Ray<Tvec>> rays;
+        rays.reserve(n_pixels);
+        Tvec dir{0, 0, 1};
+        for (u32 iy = 0; iy < ny; ++iy) {
+            for (u32 ix = 0; ix < nx; ++ix) {
+                Tvec origin{pixel_coord(ix, nx), pixel_coord(iy, ny), Tscal(0)};
+                rays.emplace_back(origin, dir, Tscal(0));
+            }
+        }
+        return rays;
+    }
+
     inline std::vector<shammath::RingRay<Tvec>> make_azymuthal_ring_rays() {
         std::vector<shammath::RingRay<Tvec>> rays;
         rays.reserve(n_pixels);
@@ -230,8 +244,12 @@ namespace sph_render_test {
             Tscal acc               = 0;
             shammath::Ray<Tvec> ray = rays[ir];
             for (u32 ib = 0; ib < ds.xyz.size(); ++ib) {
-                Tvec dr = ray.origin - ds.xyz[ib];
-                dr -= ray.direction * sycl::dot(dr, ray.direction);
+                Tvec dr   = ray.origin - ds.xyz[ib];
+                Tscal t_b = -sycl::dot(dr, ray.direction);
+                if (t_b < ray.t_min) {
+                    continue;
+                }
+                dr += ray.direction * t_b;
                 Tscal rab2 = sycl::dot(dr, dr);
                 Tscal h_b  = ds.h[ib];
                 if (rab2 > h_b * h_b * Rker2) {

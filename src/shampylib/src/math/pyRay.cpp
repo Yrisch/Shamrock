@@ -16,15 +16,35 @@
 #include "shambindings/pybindaliases.hpp"
 #include "shambindings/pytypealias.hpp"
 #include "shammath/AABB.hpp"
+#include <pybind11/stl.h>
+#include <optional>
 
 namespace shampylib {
 
     template<class T>
     void init_shamrock_math_Ray(py::module &m, std::string name) {
         py::class_<shammath::Ray<T>>(m, name.c_str())
-            .def(py::init([](f64_3 origin, f64_3 direction) {
-                return std::make_unique<shammath::Ray<T>>(origin, direction);
-            }))
+            .def(
+                py::init([](f64_3 origin, f64_3 direction, std::optional<f64> t_min) {
+                    if (t_min) {
+                        return std::make_unique<shammath::Ray<T>>(origin, direction, *t_min);
+                    }
+                    return std::make_unique<shammath::Ray<T>>(origin, direction);
+                }),
+                py::arg("origin"),
+                py::arg("direction"),
+                py::arg("t_min") = std::nullopt,
+                R"==(
+    Ray ``origin + t * direction`` (direction is normalized) for ``t >= t_min``.
+
+    ``t_min`` defaults to -inf (infinite line), use ``t_min = 0`` for a half-line
+    starting at ``origin``.
+)==")
+            .def(
+                "t_min",
+                [](shammath::Ray<T> &ray) {
+                    return ray.t_min;
+                })
             .def(
                 "origin",
                 [](shammath::Ray<T> &ray) {

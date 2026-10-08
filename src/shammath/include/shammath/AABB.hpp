@@ -19,6 +19,7 @@
 
 #include "shambase/SourceLocation.hpp"
 #include "shambase/assert.hpp"
+#include "shambase/numeric_limits.hpp"
 #include "shambackends/math.hpp"
 #include "shambackends/vec.hpp"
 #include <limits>
@@ -27,6 +28,10 @@ namespace shammath {
 
     /**
      * @brief Ray representation for intersection testing
+     *
+     * The ray is the set of points ``origin + t * direction`` for ``t >= t_min``. With the
+     * default ``t_min = -inf`` it is an infinite line, with ``t_min = 0`` it is a half-line
+     * starting at ``origin``.
      *
      * @tparam T Vector type for coordinates
      */
@@ -38,15 +43,18 @@ namespace shammath {
         T origin;
         T direction;
         T inv_direction;
+        Tscal t_min; ///< Lower bound of the ray parameter (along the normalized direction)
 
         /**
          * @brief Construct a normalized ray from origin and direction
          *
          * @param origin Starting point of the ray
          * @param direction Direction vector (will be normalized)
+         * @param t_min Lower bound of the ray parameter, -inf (default) for an infinite line
          */
-        inline Ray(T origin, T direction)
-            : origin(origin), direction(direction), inv_direction(Tscal{1.} / direction) {
+        inline Ray(T origin, T direction, Tscal t_min = -shambase::get_infty<Tscal>())
+            : origin(origin), direction(direction), inv_direction(Tscal{1.} / direction),
+              t_min(t_min) {
 
             Tscal f = sycl::length(direction);
             SHAM_ASSERT(f > 0);
@@ -326,6 +334,7 @@ namespace shammath {
          *
          * This function perform a ray-AABB intersection test.
          * It return true if the ray intersect the AABB and false otherwise.
+         * Only the part of the ray with ``t >= ray.t_min`` is considered.
          *
          * @param[in] ray The ray to test
          * @return true if the ray intersect the AABB
@@ -354,7 +363,7 @@ namespace shammath {
 
     template<class T>
     [[nodiscard]] inline bool AABB<T>::intersect_ray(Ray<T> ray) const noexcept {
-        Tscal tmin = -shambase::get_infty<Tscal>(), tmax = shambase::get_infty<Tscal>();
+        Tscal tmin = ray.t_min, tmax = shambase::get_infty<Tscal>();
 
         Tscal tx1 = (lower.x() - ray.origin.x()) * ray.inv_direction.x();
         Tscal tx2 = (upper.x() - ray.origin.x()) * ray.inv_direction.x();

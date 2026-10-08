@@ -128,7 +128,15 @@ void shammodels::sph::modules::SPHColumnInteg<Tvec, T, SPHKernel>::_impl_evaluat
                     [&](u32 id_b) {
                         Tvec dr = ray.origin - xyz[id_b];
 
-                        dr -= ray.direction * sycl::dot(dr, ray.direction);
+                        Tscal t_b = -sycl::dot(dr, ray.direction);
+
+                        // skip particles whose center lies before the start of the ray
+                        // (e.g. behind a perspective camera)
+                        if (t_b < ray.t_min) {
+                            return;
+                        }
+
+                        dr += ray.direction * t_b;
 
                         Tscal rab2 = sycl::dot(dr, dr);
                         Tscal h_b  = hpart[id_b];

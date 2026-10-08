@@ -106,3 +106,52 @@ NEW_TEST(Unittest, "shammath/AABB::contains", 1) {
         REQUIRE(!box2.contains(box1));
     }
 }
+
+NEW_TEST(Unittest, "shammath/AABB::intersect_ray", 1) {
+
+    shammath::AABB<f64_3> box{{-1.0, -1.0, -1.0}, {1.0, 1.0, 1.0}};
+
+    // Test case 1: infinite line (default t_min) hits the box on both sides of the origin
+    {
+        shammath::Ray<f64_3> ray_after{{0.0, 0.0, -5.0}, {0.0, 0.0, 1.0}};
+        shammath::Ray<f64_3> ray_before{{0.0, 0.0, 5.0}, {0.0, 0.0, 1.0}};
+
+        REQUIRE(box.intersect_ray(ray_after));
+        REQUIRE(box.intersect_ray(ray_before));
+    }
+
+    // Test case 2: half-line only hits the box if it is in front of the origin
+    {
+        shammath::Ray<f64_3> ray_after{{0.0, 0.0, -5.0}, {0.0, 0.0, 1.0}, 0.0};
+        shammath::Ray<f64_3> ray_before{{0.0, 0.0, 5.0}, {0.0, 0.0, 1.0}, 0.0};
+
+        REQUIRE(box.intersect_ray(ray_after));
+        REQUIRE(!box.intersect_ray(ray_before));
+    }
+
+    // Test case 3: half-line starting inside the box
+    {
+        shammath::Ray<f64_3> ray{{0.5, 0.5, 0.5}, {1.0, 2.0, 3.0}, 0.0};
+
+        REQUIRE(box.intersect_ray(ray));
+    }
+
+    // Test case 4: line missing the box, whatever t_min
+    {
+        shammath::Ray<f64_3> ray_line{{2.0, 0.0, -5.0}, {0.0, 0.0, 1.0}};
+        shammath::Ray<f64_3> ray_half{{2.0, 0.0, -5.0}, {0.0, 0.0, 1.0}, 0.0};
+
+        REQUIRE(!box.intersect_ray(ray_line));
+        REQUIRE(!box.intersect_ray(ray_half));
+    }
+
+    // Test case 5: t_min is measured along the normalized direction
+    {
+        // the box starts at a distance 4 along the ray
+        shammath::Ray<f64_3> ray_hit{{0.0, 0.0, -5.0}, {0.0, 0.0, 10.0}, 3.9};
+        shammath::Ray<f64_3> ray_miss{{0.0, 0.0, -5.0}, {0.0, 0.0, 10.0}, 6.1};
+
+        REQUIRE(box.intersect_ray(ray_hit));
+        REQUIRE(!box.intersect_ray(ray_miss));
+    }
+}
